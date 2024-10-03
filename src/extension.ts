@@ -6,6 +6,9 @@ export function activate(context: vscode.ExtensionContext) {
   vscode.window.registerTreeDataProvider("gitBranchesView", gitBranchProvider);
 
   context.subscriptions.push(
+    vscode.commands.registerCommand("gitBranchesView.addBranch", () => {
+      gitBranchProvider.createBranchFromDevelop();
+    }),
     vscode.commands.registerCommand(
       "gitBranchesView.checkoutLocalBranch",
       (branchName: string) => {
@@ -24,7 +27,6 @@ export function activate(context: vscode.ExtensionContext) {
         gitBranchProvider.deleteLocalBranch(branchname);
       }
     )
-
   );
 }
 
@@ -35,7 +37,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> =
     this._onDidChangeTreeData.event;
 
-  constructor() { }
+  constructor() {}
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
@@ -114,6 +116,59 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     });
   }
 
+  createBranchFromDevelop() {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    cp.exec("git branch", { cwd: workspaceFolder }, (err, stdout, stderr) => {
+      if (err) {
+        vscode.window.showErrorMessage(
+          `Error checking for develop branch: ${stderr}`
+        );
+        return;
+      }
+
+      const hasDevelopBranch = stdout.includes("develop");
+
+      if (!hasDevelopBranch) {
+        vscode.window.showErrorMessage(
+          "No 'develop' branch found. Cannot base a new branch on it."
+        );
+        return;
+      }
+
+      vscode.window
+        .showInputBox({ prompt: "Enter the new branch name" })
+        .then((branchName) => {
+          if (!branchName) {
+            vscode.window.showErrorMessage("Branch name is required");
+            return;
+          }
+
+          cp.exec(
+            `git checkout develop && git checkout -b ${branchName}`,
+            { cwd: workspaceFolder },
+            (err, stdout, stderr) => {
+              if (err) {
+                vscode.window.showErrorMessage(
+                  `Failed to create branch: ${stderr}`
+                );
+                return;
+              }
+
+              vscode.window.showInformationMessage(
+                `Branch '${branchName}' created based on 'develop'`
+              );
+              this._onDidChangeTreeData.fire();
+            }
+          );
+        });
+    });
+  }
 
   checkoutLocalBranch(branchName: string) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -151,7 +206,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     }
 
     cp.exec(
-      `git checkout ${branchName}`,
+      `git checkout -b ${branchName}`,
       { cwd: workspaceFolder },
       (err, stdout, stderr) => {
         if (err) {
@@ -197,10 +252,8 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     //     this._onDidChangeTreeData.fire();
     //   }
     // );
-
   }
 }
-
 
 class TreeItem extends vscode.TreeItem {
   children: TreeItem[] | undefined;

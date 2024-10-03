@@ -24,9 +24,20 @@
         "command": "gitBranchesView.deleteLocalBranch",
         "title": "Delete branch",
         "icon": "resources/delete.svg"
+      },
+      {
+        "command": "gitBranchesView.addBranch",
+        "title": "Add Branch"
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "gitBranchesView.addBranch",
+          "when": "view == gitBranchesView",
+          "group": "navigation"
+        }
+      ],
       "view/item/context": [
         {
           "command": "gitBranchesView.deleteLocalBranch",
