@@ -14,17 +14,17 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "package-explorer",
-          "title": "Package Explorer",
+          "id": "jiraViewContainer",
+          "title": "JIRA View", 
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "package-explorer": [
+      "jiraViewContainer": [
         {
-          "id": "exampleView",
-          "name": "My Tree View"
+          "id": "gitBranchesView",
+          "name": "Git Branches"
         }
       ]
     }
