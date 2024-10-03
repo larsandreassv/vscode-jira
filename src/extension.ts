@@ -2,10 +2,17 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 export function activate(context: vscode.ExtensionContext) {
-  // Register the tree data provider with the correct ID
-  vscode.window.registerTreeDataProvider(
-    "gitBranchesView", // Updated to match package.json
-    new GitBranchTreeDataProvider()
+  // Register the tree data provider
+  const gitBranchProvider = new GitBranchTreeDataProvider();
+  vscode.window.registerTreeDataProvider("gitBranchesView", gitBranchProvider);
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "gitBranchesView.checkoutBranch",
+      (branchName: string) => {
+        gitBranchProvider.checkoutBranch(branchName);
+      }
+    )
   );
 }
 
@@ -20,9 +27,9 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
-      return undefined; // No children for branch items
+      return undefined;
     } else {
-      return this.getGitBranches(); // Return the list of Git branches
+      return this.getGitBranches();
     }
   }
 
@@ -53,11 +60,38 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
         const branches = stdout
           .split("\n")
           .filter((branch) => branch.trim() !== "")
-          .map((branch) => new TreeItem(branch.trim())); // Create TreeItems for each branch
+          .map((branch) => new TreeItem(branch.trim()));
 
         resolve(branches);
       });
     });
+  }
+
+  checkoutBranch(branchName: string) {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    cp.exec(
+      `git checkout ${branchName}`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to checkout branch: ${stderr}`
+          );
+          return;
+        }
+
+        vscode.window.showInformationMessage(
+          `Checked out to branch: ${branchName}`
+        );
+        this._onDidChangeTreeData.fire();
+      }
+    );
   }
 }
 
@@ -65,5 +99,11 @@ class TreeItem extends vscode.TreeItem {
   constructor(label: string) {
     super(label, vscode.TreeItemCollapsibleState.None);
     this.contextValue = "branch";
+
+    this.command = {
+      command: "gitBranchesView.checkoutBranch",
+      title: "Checkout Branch",
+      arguments: [label],
+    };
   }
 }
