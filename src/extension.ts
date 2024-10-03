@@ -1,26 +1,55 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+   let disposable = vscode.commands.registerCommand('extension.showList', () => {
+      const panel = vscode.window.createWebviewPanel(
+         'listView', 
+         'List with Buttons', 
+         vscode.ViewColumn.One, 
+         {}
+      );
 
-	// Use the console to output diagnostic information (console.log) and errors (console.error)
-	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "vscode-jira" is now active!');
+      // Define the list of strings
+      const strings = ['Item 1', 'Item 2', 'Item 3'];
 
-	// The command has been defined in the package.json file
-	// Now provide the implementation of the command with registerCommand
-	// The commandId parameter must match the command field in package.json
-	const disposable = vscode.commands.registerCommand('vscode-jira.helloWorld', () => {
-		// The code you place here will be executed every time your command is executed
-		// Display a message box to the user
-		vscode.window.showInformationMessage('Hello World from vscode-jira!');
-	});
+      // Generate HTML for the Webview
+      panel.webview.html = getWebviewContent(strings);
+   });
 
-	context.subscriptions.push(disposable);
+   context.subscriptions.push(disposable);
 }
 
-// This method is called when your extension is deactivated
+function getWebviewContent(strings: string[]): string {
+   // Dynamically create buttons for each string in the list
+   const itemsHtml = strings.map((item, index) => `
+      <div>
+         <span>${item}</span>
+         <button onclick="handleClick(${index})">Click me</button>
+      </div>
+   `).join('');
+
+   // Return HTML content with simple JavaScript to handle button clicks
+   return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+         <meta charset="UTF-8">
+         <meta name="viewport" content="width=device-width, initial-scale=1.0">
+         <title>List with Buttons</title>
+      </head>
+      <body>
+         <h1>List of Items</h1>
+         ${itemsHtml}
+         <script>
+            const vscode = acquireVsCodeApi();
+
+            function handleClick(index) {
+               vscode.postMessage({ command: 'buttonClick', index });
+            }
+         </script>
+      </body>
+      </html>
+   `;
+}
+
 export function deactivate() {}

@@ -9,16 +9,29 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
   "main": "./out/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "vscode-jira.helloWorld",
-        "title": "Hello World"
-      }
-    ]
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "exampleSidebar",
+          "title": "Example",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "exampleSidebar": [
+        {
+          "id": "listView",
+          "name": "List with Buttons"
+        }
+      ]
+    }
   },
+  "activationEvents": [
+    "onView:listView"
+  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
