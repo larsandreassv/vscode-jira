@@ -11,11 +11,21 @@
   ],
   "main": "./out/extension.js",
   "contributes": {
+    "commands": [
+      {
+        "command": "gitBranchesView.checkoutLocalBranch",
+        "title": "Checkout Local Branch"
+      },
+      {
+        "command": "gitBranchesView.checkoutRemoteBranch",
+        "title": "Checkout Remote Branch"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {
           "id": "jiraViewContainer",
-          "title": "JIRA View", 
+          "title": "JIRA View",
           "icon": "resources/icon.svg"
         }
       ]

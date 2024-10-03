@@ -2,15 +2,20 @@ import * as vscode from "vscode";
 import * as cp from "child_process";
 
 export function activate(context: vscode.ExtensionContext) {
-  // Register the tree data provider
   const gitBranchProvider = new GitBranchTreeDataProvider();
   vscode.window.registerTreeDataProvider("gitBranchesView", gitBranchProvider);
 
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      "gitBranchesView.checkoutBranch",
+      "gitBranchesView.checkoutLocalBranch",
       (branchName: string) => {
-        gitBranchProvider.checkoutBranch(branchName);
+        gitBranchProvider.checkoutLocalBranch(branchName);
+      }
+    ),
+    vscode.commands.registerCommand(
+      "gitBranchesView.checkoutRemoteBranch",
+      (branchName: string) => {
+        gitBranchProvider.checkoutRemoteBranch(branchName);
       }
     )
   );
@@ -27,7 +32,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
-      return undefined;
+      return element.children;
     } else {
       return this.getGitBranches();
     }
@@ -38,6 +43,34 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   }
 
   private getGitBranches(): Promise<TreeItem[]> {
+    return Promise.all([this.getLocalBranches(), this.getRemoteBranches()])
+      .then(([localBranches, remoteBranches]) => {
+        if (!localBranches.length && !remoteBranches.length) {
+          vscode.window.showInformationMessage(
+            "No Git branches found in the current workspace."
+          );
+        }
+
+        return [
+          new TreeItem("Local Branches", localBranches),
+          new TreeItem("Remote Branches", remoteBranches),
+        ];
+      })
+      .catch((error) => {
+        vscode.window.showErrorMessage(`Failed to load Git branches: ${error}`);
+        return [];
+      });
+  }
+
+  private getLocalBranches(): Promise<TreeItem[]> {
+    return this.getBranches("git branch");
+  }
+
+  private getRemoteBranches(): Promise<TreeItem[]> {
+    return this.getBranches("git branch -r");
+  }
+
+  private getBranches(command: string): Promise<TreeItem[]> {
     return new Promise((resolve, reject) => {
       const workspaceFolder =
         vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
@@ -48,10 +81,10 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
         return;
       }
 
-      cp.exec("git branch", { cwd: workspaceFolder }, (err, stdout, stderr) => {
+      cp.exec(command, { cwd: workspaceFolder }, (err, stdout, stderr) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Error fetching Git branches: ${stderr}`
+            `Error executing ${command}: ${stderr}`
           );
           reject(stderr);
           return;
@@ -60,14 +93,21 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
         const branches = stdout
           .split("\n")
           .filter((branch) => branch.trim() !== "")
-          .map((branch) => new TreeItem(branch.trim()));
+          .map(
+            (branch) =>
+              new TreeItem(
+                branch.trim(),
+                undefined,
+                command === "git branch" ? "local" : "remote"
+              )
+          );
 
         resolve(branches);
       });
     });
   }
 
-  checkoutBranch(branchName: string) {
+  checkoutLocalBranch(branchName: string) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (!workspaceFolder) {
@@ -81,13 +121,40 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       (err, stdout, stderr) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Failed to checkout branch: ${stderr}`
+            `Failed to checkout local branch: ${stderr}`
           );
           return;
         }
 
         vscode.window.showInformationMessage(
-          `Checked out to branch: ${branchName}`
+          `Checked out to local branch: ${branchName}`
+        );
+        this._onDidChangeTreeData.fire();
+      }
+    );
+  }
+
+  checkoutRemoteBranch(branchName: string) {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    cp.exec(
+      `git checkout ${branchName}`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to checkout remote branch: ${stderr}`
+          );
+          return;
+        }
+
+        vscode.window.showInformationMessage(
+          `Checked out to remote branch: ${branchName}`
         );
         this._onDidChangeTreeData.fire();
       }
@@ -96,14 +163,28 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 }
 
 class TreeItem extends vscode.TreeItem {
-  constructor(label: string) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-    this.contextValue = "branch";
+  children: TreeItem[] | undefined;
 
-    this.command = {
-      command: "gitBranchesView.checkoutBranch",
-      title: "Checkout Branch",
-      arguments: [label],
-    };
+  constructor(label: string, children?: TreeItem[], type?: "local" | "remote") {
+    super(
+      label,
+      children === undefined
+        ? vscode.TreeItemCollapsibleState.None
+        : vscode.TreeItemCollapsibleState.Collapsed
+    );
+
+    this.children = children;
+
+    if (!children) {
+      this.command = {
+        command:
+          type === "local"
+            ? "gitBranchesView.checkoutLocalBranch"
+            : "gitBranchesView.checkoutRemoteBranch",
+        title: `Checkout ${type === "local" ? "Local" : "Remote"} Branch`,
+        arguments: [label],
+      };
+      this.contextValue = `${type}-branch`;
+    }
   }
 }
