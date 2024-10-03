@@ -41,7 +41,7 @@
       "view/item/context": [
         {
           "command": "gitBranchesView.deleteLocalBranch",
-          "when": "viewItem == local-branch",
+          "when": "view == gitBranchesView && viewItem == local-branch",
           "group": "inline"
         }
       ]

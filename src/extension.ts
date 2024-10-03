@@ -23,8 +23,8 @@ export function activate(context: vscode.ExtensionContext) {
     ),
     vscode.commands.registerCommand(
       "gitBranchesView.deleteLocalBranch",
-      (branchname: string) => {
-        gitBranchProvider.deleteLocalBranch(branchname);
+      (branch: TreeItem) => {
+        gitBranchProvider.deleteLocalBranch(branch);
       }
     )
   );
@@ -224,34 +224,33 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     );
   }
 
-  deleteLocalBranch(branchName: string) {
-    console.log("Delete!");
+  deleteLocalBranch(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-    vscode.window.showInformationMessage("Deleteing branch");
+    vscode.window.showInformationMessage(String(branch.label));
 
     if (!workspaceFolder) {
       vscode.window.showErrorMessage("No workspace folder found!");
       return;
     }
 
-    // cp.exec(
-    //   `git branch -d ${branchName}`,
-    //   { cwd: workspaceFolder },
-    //   (err, stdout, stderr) => {
-    //     if (err) {
-    //       vscode.window.showErrorMessage(
-    //         `Failed to delete local branch: ${stderr}`
-    //       );
-    //       return;
-    //     }
+    cp.exec(
+      `git branch -d ${branch.label}`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to delete local branch: ${stderr}`
+          );
+          return;
+        }
 
-    //     vscode.window.showInformationMessage(
-    //       `Local branch: ${branchName} deleted`
-    //     );
-    //     this._onDidChangeTreeData.fire();
-    //   }
-    // );
+        vscode.window.showInformationMessage(
+          `Local branch: ${branch.label} deleted`
+        );
+        this._onDidChangeTreeData.fire();
+      }
+    );
+
   }
 }
 
