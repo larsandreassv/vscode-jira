@@ -43,7 +43,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> =
     this._onDidChangeTreeData.event;
 
-  constructor() {}
+  constructor() { }
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
@@ -239,21 +239,28 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    cp.exec(
-      `git branch -d ${branch.label}`,
-      { cwd: workspaceFolder },
-      (err, stdout, stderr) => {
-        if (err) {
-          vscode.window.showErrorMessage(
-            `Failed to delete local branch: ${stderr}`
-          );
-          return;
-        }
+    vscode.window
+      .showInformationMessage(`Are you sure you want to delete branch ${branch.label}?`, "Yes", "No")
+      .then(answer => {
+        if (answer === "Yes") {
+          cp.exec(
+            `git branch -d ${branch.label}`,
+            { cwd: workspaceFolder },
+            (err, stdout, stderr) => {
+              if (err) {
+                vscode.window.showErrorMessage(
+                  `Failed to delete local branch: ${stderr}`
+                );
+                return;
+              }
 
-        vscode.window.showInformationMessage(
-          `Local branch: ${branch.label} deleted`
-        );
-        this._onDidChangeTreeData.fire();
+              vscode.window.showInformationMessage(
+                `Local branch: ${branch.label} deleted`
+              );
+              this._onDidChangeTreeData.fire();
+            }
+          );
+        }
       }
     );
   }

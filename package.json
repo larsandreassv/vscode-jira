@@ -31,7 +31,7 @@
       },
       {
         "command": "gitBranchesView.pullFromDevelop",
-        "title": "Pull from origin",
+        "title": "Pull from origin develop",
         "icon": "resources/pull.svg"
       }
     ],
