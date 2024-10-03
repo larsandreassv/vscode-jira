@@ -14,24 +14,21 @@
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "exampleSidebar",
-          "title": "Example",
+          "id": "package-explorer",
+          "title": "Package Explorer",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "exampleSidebar": [
+      "package-explorer": [
         {
-          "id": "listView",
-          "name": "List with Buttons"
+          "id": "exampleView",
+          "name": "My Tree View"
         }
       ]
     }
   },
-  "activationEvents": [
-    "onView:listView"
-  ],
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",

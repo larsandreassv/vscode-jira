@@ -1,55 +1,43 @@
 import * as vscode from 'vscode';
 
 export function activate(context: vscode.ExtensionContext) {
-   let disposable = vscode.commands.registerCommand('extension.showList', () => {
-      const panel = vscode.window.createWebviewPanel(
-         'listView', 
-         'List with Buttons', 
-         vscode.ViewColumn.One, 
-         {}
-      );
-
-      // Define the list of strings
-      const strings = ['Item 1', 'Item 2', 'Item 3'];
-
-      // Generate HTML for the Webview
-      panel.webview.html = getWebviewContent(strings);
-   });
-
-   context.subscriptions.push(disposable);
+  vscode.window.registerTreeDataProvider('exampleView', new TreeDataProvider());
 }
 
-function getWebviewContent(strings: string[]): string {
-   // Dynamically create buttons for each string in the list
-   const itemsHtml = strings.map((item, index) => `
-      <div>
-         <span>${item}</span>
-         <button onclick="handleClick(${index})">Click me</button>
-      </div>
-   `).join('');
+class TreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
+  onDidChangeTreeData?: vscode.Event<TreeItem|null|undefined>|undefined;
 
-   // Return HTML content with simple JavaScript to handle button clicks
-   return `
-      <!DOCTYPE html>
-      <html lang="en">
-      <head>
-         <meta charset="UTF-8">
-         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-         <title>List with Buttons</title>
-      </head>
-      <body>
-         <h1>List of Items</h1>
-         ${itemsHtml}
-         <script>
-            const vscode = acquireVsCodeApi();
+  data: TreeItem[];
 
-            function handleClick(index) {
-               vscode.postMessage({ command: 'buttonClick', index });
-            }
-         </script>
-      </body>
-      </html>
-   `;
+  constructor() {
+    this.data = [new TreeItem('cars', [
+      new TreeItem(
+          'Ford', [new TreeItem('Fiesta'), new TreeItem('Focus'), new TreeItem('Mustang')]),
+      new TreeItem(
+          'BMW', [new TreeItem('320'), new TreeItem('X3'), new TreeItem('X5')])
+    ])];
+  }
+
+  getTreeItem(element: TreeItem): vscode.TreeItem|Thenable<vscode.TreeItem> {
+    return element;
+  }
+
+  getChildren(element?: TreeItem|undefined): vscode.ProviderResult<TreeItem[]> {
+    if (element === undefined) {
+      return this.data;
+    }
+    return element.children;
+  }
 }
 
-export function deactivate() {}
+class TreeItem extends vscode.TreeItem {
+  children: TreeItem[]|undefined;
+
+  constructor(label: string, children?: TreeItem[]) {
+    super(
+        label,
+        children === undefined ? vscode.TreeItemCollapsibleState.None :
+                                 vscode.TreeItemCollapsibleState.Expanded);
+    this.children = children;
+  }
+}
