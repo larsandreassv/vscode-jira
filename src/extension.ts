@@ -26,6 +26,12 @@ export function activate(context: vscode.ExtensionContext) {
       (branch: TreeItem) => {
         gitBranchProvider.deleteLocalBranch(branch);
       }
+    ),
+    vscode.commands.registerCommand(
+      "gitBranchesView.pullFromDevelop",
+      (branch: TreeItem) => {
+        gitBranchProvider.pullFromDevelop(branch);
+      }
     )
   );
 }
@@ -224,9 +230,9 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     );
   }
 
+  // TODO: Add confirmation dialog. 
   deleteLocalBranch(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    vscode.window.showInformationMessage(String(branch.label));
 
     if (!workspaceFolder) {
       vscode.window.showErrorMessage("No workspace folder found!");
@@ -250,7 +256,33 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
         this._onDidChangeTreeData.fire();
       }
     );
+  }
 
+  pullFromDevelop(branch: TreeItem) {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    cp.exec(
+      `git checkout develop && git pull && git checkout ${branch.label} && git merge develop`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to merge develop to local branch: ${stderr}`
+          );
+          return;
+        }
+
+        vscode.window.showInformationMessage(
+          `Merged develop to local branch: ${branch.label}`
+        );
+        this._onDidChangeTreeData.fire();
+      }
+    );
   }
 }
 

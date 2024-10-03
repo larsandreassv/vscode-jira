@@ -28,6 +28,11 @@
       {
         "command": "gitBranchesView.addBranch",
         "title": "Add Branch"
+      },
+      {
+        "command": "gitBranchesView.pullFromDevelop",
+        "title": "Pull from origin",
+        "icon": "resources/pull.svg"
       }
     ],
     "menus": {
@@ -41,6 +46,11 @@
       "view/item/context": [
         {
           "command": "gitBranchesView.deleteLocalBranch",
+          "when": "view == gitBranchesView && viewItem == local-branch",
+          "group": "inline"
+        },
+        {
+          "command": "gitBranchesView.pullFromDevelop",
           "when": "view == gitBranchesView && viewItem == local-branch",
           "group": "inline"
         }
