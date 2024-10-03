@@ -19,8 +19,22 @@
       {
         "command": "gitBranchesView.checkoutRemoteBranch",
         "title": "Checkout Remote Branch"
+      },
+      {
+        "command": "gitBranchesView.deleteLocalBranch",
+        "title": "Delete branch",
+        "icon": "resources/delete.svg"
       }
     ],
+    "menus": {
+      "view/item/context": [
+        {
+          "command": "gitBranchesView.deleteLocalBranch",
+          "when": "viewItem == local-branch",
+          "group": "inline"
+        }
+      ]
+    },
     "viewsContainers": {
       "activitybar": [
         {

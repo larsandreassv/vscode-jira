@@ -17,7 +17,14 @@ export function activate(context: vscode.ExtensionContext) {
       (branchName: string) => {
         gitBranchProvider.checkoutRemoteBranch(branchName);
       }
+    ),
+    vscode.commands.registerCommand(
+      "gitBranchesView.deleteLocalBranch",
+      (branchname: string) => {
+        gitBranchProvider.deleteLocalBranch(branchname);
+      }
     )
+
   );
 }
 
@@ -28,7 +35,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> =
     this._onDidChangeTreeData.event;
 
-  constructor() {}
+  constructor() { }
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
@@ -107,6 +114,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     });
   }
 
+
   checkoutLocalBranch(branchName: string) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -160,7 +168,39 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       }
     );
   }
+
+  deleteLocalBranch(branchName: string) {
+    console.log("Delete!");
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    vscode.window.showInformationMessage("Deleteing branch");
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    // cp.exec(
+    //   `git branch -d ${branchName}`,
+    //   { cwd: workspaceFolder },
+    //   (err, stdout, stderr) => {
+    //     if (err) {
+    //       vscode.window.showErrorMessage(
+    //         `Failed to delete local branch: ${stderr}`
+    //       );
+    //       return;
+    //     }
+
+    //     vscode.window.showInformationMessage(
+    //       `Local branch: ${branchName} deleted`
+    //     );
+    //     this._onDidChangeTreeData.fire();
+    //   }
+    // );
+
+  }
 }
+
 
 class TreeItem extends vscode.TreeItem {
   children: TreeItem[] | undefined;
