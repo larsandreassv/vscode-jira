@@ -33,7 +33,7 @@ export function activate(context: vscode.ExtensionContext) {
         gitBranchProvider.pullFromDevelop(branch);
       }
     ),
-    vscode.commands.registerCommand("extension.fetchJiraIssues", () => {
+    vscode.commands.registerCommand("jiraIssuesView.fetchJiraIssues", () => {
       runPythonScript(["fetch_issues"])
         .then((issues) => {
           vscode.window.showInformationMessage(
@@ -46,7 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
           );
         });
     }),
-    vscode.commands.registerCommand("extension.updateJiraIssue", () => {
+    vscode.commands.registerCommand("jiraIssuesView.updateJiraIssue", () => {
       const issueId = "ISSUE-1";
       const newStatus = "Done";
 

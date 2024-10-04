@@ -35,11 +35,11 @@
         "icon": "resources/pull.svg"
       },
       {
-        "command": "extension.fetchJiraIssues",
+        "command": "jiraIssuesView.fetchJiraIssues",
         "title": "Fetch Jira Issues"
       },
       {
-        "command": "extension.updateJiraIssue",
+        "command": "jiraIssuesView.updateJiraIssue",
         "title": "Update Jira Issue"
       }
     ],
@@ -48,6 +48,11 @@
         {
           "command": "gitBranchesView.addBranch",
           "when": "view == gitBranchesView",
+          "group": "navigation"
+        },
+        {
+          "command": "jiraIssuesView.fetchJiraIssues",
+          "when": "view == jiraIssuesView",
           "group": "navigation"
         }
       ],
@@ -59,6 +64,11 @@
         },
         {
           "command": "gitBranchesView.pullFromDefault",
+          "when": "view == gitBranchesView && viewItem == local-branch",
+          "group": "inline"
+        },
+        {
+          "command": "jiraIssuesView.updateJiraIssue",
           "when": "view == gitBranchesView && viewItem == local-branch",
           "group": "inline"
         }
@@ -78,6 +88,10 @@
         {
           "id": "gitBranchesView",
           "name": "Git Branches"
+        },
+        {
+          "id": "jiraIssuesView",
+          "name": "Jira Issues"
         }
       ]
     }
