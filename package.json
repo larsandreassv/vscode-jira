@@ -43,16 +43,17 @@
         "title": "Update Jira Issue"
       }
     ],
+    "viewsWelcome": [
+      {
+        "view": "jiraIssuesView",
+        "contents": "[Fetch Jira issues](command:jiraIssuesView.fetchJiraIssues)"
+      }
+    ],
     "menus": {
       "view/title": [
         {
           "command": "gitBranchesView.addBranch",
           "when": "view == gitBranchesView",
-          "group": "navigation"
-        },
-        {
-          "command": "jiraIssuesView.fetchJiraIssues",
-          "when": "view == jiraIssuesView",
           "group": "navigation"
         }
       ],
