@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
+import { deflate } from "zlib";
 
 export function activate(context: vscode.ExtensionContext) {
   const gitBranchProvider = new GitBranchTreeDataProvider();
@@ -7,7 +8,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitBranchesView.addBranch", () => {
-      gitBranchProvider.createBranchFromDevelop();
+      gitBranchProvider.createBranchFromDefault();
     }),
     vscode.commands.registerCommand(
       "gitBranchesView.checkoutLocalBranch",
@@ -28,9 +29,9 @@ export function activate(context: vscode.ExtensionContext) {
       }
     ),
     vscode.commands.registerCommand(
-      "gitBranchesView.pullFromDevelop",
+      "gitBranchesView.pullFromDefault",
       (branch: TreeItem) => {
-        gitBranchProvider.pullFromDevelop(branch);
+        gitBranchProvider.pullFromDefeult(branch);
       }
     )
   );
@@ -122,7 +123,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     });
   }
 
-  createBranchFromDevelop() {
+  createBranchFromDefault() {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (!workspaceFolder) {
@@ -130,19 +131,20 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    cp.exec("git branch", { cwd: workspaceFolder }, (err, stdout, stderr) => {
+    cp.exec("git branch", { cwd: workspaceFolder }, async (err, stdout, stderr) => {
       if (err) {
         vscode.window.showErrorMessage(
-          `Error checking for develop branch: ${stderr}`
+          `Error checking for branches: ${stderr}`
         );
         return;
       }
 
-      const hasDevelopBranch = stdout.includes("develop");
+      const defaultBranchName = await getDefaultBranch();
+      const hasDefaultBranch = defaultBranchName && stdout.includes(defaultBranchName);
 
-      if (!hasDevelopBranch) {
+      if (!hasDefaultBranch) {
         vscode.window.showErrorMessage(
-          "No 'develop' branch found. Cannot base a new branch on it."
+          `No ${defaultBranchName} branch found. Cannot base a new branch on it.`
         );
         return;
       }
@@ -156,7 +158,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
           }
 
           cp.exec(
-            `git checkout develop && git checkout -b ${branchName}`,
+            `git checkout ${defaultBranchName} && git checkout -b ${branchName}`,
             { cwd: workspaceFolder },
             (err, stdout, stderr) => {
               if (err) {
@@ -167,7 +169,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
               }
 
               vscode.window.showInformationMessage(
-                `Branch '${branchName}' created based on 'develop'`
+                `Branch '${branchName}' created based on '${defaultBranchName}'`
               );
               this._onDidChangeTreeData.fire();
             }
@@ -178,6 +180,8 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 
   checkoutLocalBranch(branchName: string) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    getDefaultBranch();
 
     if (!workspaceFolder) {
       vscode.window.showErrorMessage("No workspace folder found!");
@@ -264,7 +268,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       );
   }
 
-  pullFromDevelop(branch: TreeItem) {
+  pullFromDefeult(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (!workspaceFolder) {
@@ -274,6 +278,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 
     let currentBranch = "";
     let branchToMerge = String(branch.label).replace('*', '').trim();
+    const defaultBranchName = getDefaultBranch();
 
     cp.exec(
       `git branch --show-current`,
@@ -295,23 +300,50 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     }
 
     cp.exec(
-      `git merge develop`,
+      `git merge ${defaultBranchName}`,
       { cwd: workspaceFolder },
       (err, stdout, stderr) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Failed to merge develop to local branch: ${stderr}`
+            `Failed to merge ${defaultBranchName} to local branch: ${stderr}`
           );
           return;
         }
 
         vscode.window.showInformationMessage(
-          `Merged develop to local branch: ${branch.label}`
+          `Merged ${defaultBranchName} to local branch: ${branch.label}`
         );
         this._onDidChangeTreeData.fire();
       }
     );
   }
+}
+
+function getDefaultBranch(): Promise<string> {
+  return new Promise((resolve, reject) => {
+
+    let defaultBranch = "";
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      return;
+    }
+
+    cp.exec(
+      `git ls-remote --symref origin HEAD`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to get default branch: ${stderr}`
+          );
+          return;
+        }
+
+        defaultBranch = stdout.split(/[\/\s]+/).filter(Boolean)[3].trim();
+        resolve(defaultBranch);
+      });
+  });
 }
 
 class TreeItem extends vscode.TreeItem {

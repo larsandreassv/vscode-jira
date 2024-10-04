@@ -30,8 +30,8 @@
         "title": "Add Branch"
       },
       {
-        "command": "gitBranchesView.pullFromDevelop",
-        "title": "Pull from origin develop",
+        "command": "gitBranchesView.pullFromDefault",
+        "title": "Pull from origin default",
         "icon": "resources/pull.svg"
       }
     ],
@@ -50,7 +50,7 @@
           "group": "inline"
         },
         {
-          "command": "gitBranchesView.pullFromDevelop",
+          "command": "gitBranchesView.pullFromDefault",
           "when": "view == gitBranchesView && viewItem == local-branch",
           "group": "inline"
         }
