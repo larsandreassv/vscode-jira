@@ -33,6 +33,14 @@
         "command": "gitBranchesView.pullFromDefault",
         "title": "Pull from origin default",
         "icon": "resources/pull.svg"
+      },
+      {
+        "command": "extension.fetchJiraIssues",
+        "title": "Fetch Jira Issues"
+      },
+      {
+        "command": "extension.updateJiraIssue",
+        "title": "Update Jira Issue"
       }
     ],
     "menus": {

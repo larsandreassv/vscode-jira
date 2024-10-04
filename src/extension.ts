@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
 import * as cp from "child_process";
-import { deflate } from "zlib";
 
 export function activate(context: vscode.ExtensionContext) {
   const gitBranchProvider = new GitBranchTreeDataProvider();
@@ -8,7 +7,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     vscode.commands.registerCommand("gitBranchesView.addBranch", () => {
-      gitBranchProvider.createBranchFromDefault();
+      gitBranchProvider.createBranchFromDevelop();
     }),
     vscode.commands.registerCommand(
       "gitBranchesView.checkoutLocalBranch",
@@ -29,11 +28,38 @@ export function activate(context: vscode.ExtensionContext) {
       }
     ),
     vscode.commands.registerCommand(
-      "gitBranchesView.pullFromDefault",
+      "gitBranchesView.pullFromDevelop",
       (branch: TreeItem) => {
-        gitBranchProvider.pullFromDefeult(branch);
+        gitBranchProvider.pullFromDevelop(branch);
       }
-    )
+    ),
+    vscode.commands.registerCommand("extension.fetchJiraIssues", () => {
+      runPythonScript(["fetch_issues"])
+        .then((issues) => {
+          vscode.window.showInformationMessage(
+            `Fetched Jira Issues: ${JSON.stringify(issues)}`
+          );
+        })
+        .catch((error) => {
+          vscode.window.showErrorMessage(
+            `Error fetching Jira issues: ${error}`
+          );
+        });
+    }),
+    vscode.commands.registerCommand("extension.updateJiraIssue", () => {
+      const issueId = "ISSUE-1";
+      const newStatus = "Done";
+
+      runPythonScript(["update_issue", issueId, newStatus])
+        .then((result) => {
+          vscode.window.showInformationMessage(
+            `Issue updated: ${JSON.stringify(result)}`
+          );
+        })
+        .catch((error) => {
+          vscode.window.showErrorMessage(`Error updating Jira issue: ${error}`);
+        });
+    })
   );
 }
 
@@ -44,7 +70,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
   readonly onDidChangeTreeData: vscode.Event<TreeItem | undefined | void> =
     this._onDidChangeTreeData.event;
 
-  constructor() { }
+  constructor() {}
 
   getChildren(element?: TreeItem): vscode.ProviderResult<TreeItem[]> {
     if (element) {
@@ -123,7 +149,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     });
   }
 
-  createBranchFromDefault() {
+  createBranchFromDevelop() {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (!workspaceFolder) {
@@ -131,20 +157,19 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    cp.exec("git branch", { cwd: workspaceFolder }, async (err, stdout, stderr) => {
+    cp.exec("git branch", { cwd: workspaceFolder }, (err, stdout, stderr) => {
       if (err) {
         vscode.window.showErrorMessage(
-          `Error checking for branches: ${stderr}`
+          `Error checking for develop branch: ${stderr}`
         );
         return;
       }
 
-      const defaultBranchName = await getDefaultBranch();
-      const hasDefaultBranch = defaultBranchName && stdout.includes(defaultBranchName);
+      const hasDevelopBranch = stdout.includes("develop");
 
-      if (!hasDefaultBranch) {
+      if (!hasDevelopBranch) {
         vscode.window.showErrorMessage(
-          `No ${defaultBranchName} branch found. Cannot base a new branch on it.`
+          "No 'develop' branch found. Cannot base a new branch on it."
         );
         return;
       }
@@ -158,7 +183,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
           }
 
           cp.exec(
-            `git checkout ${defaultBranchName} && git checkout -b ${branchName}`,
+            `git checkout develop && git checkout -b ${branchName}`,
             { cwd: workspaceFolder },
             (err, stdout, stderr) => {
               if (err) {
@@ -169,7 +194,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
               }
 
               vscode.window.showInformationMessage(
-                `Branch '${branchName}' created based on '${defaultBranchName}'`
+                `Branch '${branchName}' created based on 'develop'`
               );
               this._onDidChangeTreeData.fire();
             }
@@ -180,8 +205,6 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
 
   checkoutLocalBranch(branchName: string) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-
-    getDefaultBranch();
 
     if (!workspaceFolder) {
       vscode.window.showErrorMessage("No workspace folder found!");
@@ -234,6 +257,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     );
   }
 
+  // TODO: Add confirmation dialog.
   deleteLocalBranch(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -243,8 +267,12 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     }
 
     vscode.window
-      .showInformationMessage(`Are you sure you want to delete branch ${branch.label}?`, "Yes", "No")
-      .then(answer => {
+      .showInformationMessage(
+        `Are you sure you want to delete branch ${branch.label}?`,
+        "Yes",
+        "No"
+      )
+      .then((answer) => {
         if (answer === "Yes") {
           cp.exec(
             `git branch -d ${branch.label}`,
@@ -264,11 +292,10 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
             }
           );
         }
-      }
-      );
+      });
   }
 
-  pullFromDefeult(branch: TreeItem) {
+  pullFromDevelop(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
     if (!workspaceFolder) {
@@ -276,74 +303,24 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
-    let currentBranch = "";
-    let branchToMerge = String(branch.label).replace('*', '').trim();
-    const defaultBranchName = getDefaultBranch();
-
     cp.exec(
-      `git branch --show-current`,
+      `git checkout develop && git pull && git checkout ${branch.label}.replace("*", "") && git merge develop`,
       { cwd: workspaceFolder },
       (err, stdout, stderr) => {
         if (err) {
           vscode.window.showErrorMessage(
-            `Failed to get current branch name: ${stderr}`
-          );
-          return;
-        }
-
-        currentBranch = stdout.trim();
-      });
-
-
-    if (currentBranch !== branchToMerge) {
-      this.checkoutLocalBranch(String(branch.label));
-    }
-
-    cp.exec(
-      `git merge ${defaultBranchName}`,
-      { cwd: workspaceFolder },
-      (err, stdout, stderr) => {
-        if (err) {
-          vscode.window.showErrorMessage(
-            `Failed to merge ${defaultBranchName} to local branch: ${stderr}`
+            `Failed to merge develop to local branch: ${stderr}`
           );
           return;
         }
 
         vscode.window.showInformationMessage(
-          `Merged ${defaultBranchName} to local branch: ${branch.label}`
+          `Merged develop to local branch: ${branch.label}`
         );
         this._onDidChangeTreeData.fire();
       }
     );
   }
-}
-
-function getDefaultBranch(): Promise<string> {
-  return new Promise((resolve, reject) => {
-
-    let defaultBranch = "";
-    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (!workspaceFolder) {
-      vscode.window.showErrorMessage("No workspace folder found!");
-      return;
-    }
-
-    cp.exec(
-      `git ls-remote --symref origin HEAD`,
-      { cwd: workspaceFolder },
-      (err, stdout, stderr) => {
-        if (err) {
-          vscode.window.showErrorMessage(
-            `Failed to get default branch: ${stderr}`
-          );
-          return;
-        }
-
-        defaultBranch = stdout.split(/[\/\s]+/).filter(Boolean)[3].trim();
-        resolve(defaultBranch);
-      });
-  });
 }
 
 class TreeItem extends vscode.TreeItem {
@@ -371,4 +348,85 @@ class TreeItem extends vscode.TreeItem {
       this.contextValue = `${type}-branch`;
     }
   }
+}
+
+class JiraIssueTreeItem extends vscode.TreeItem {
+  constructor(public readonly issue: any) {
+    super(issue.summary, vscode.TreeItemCollapsibleState.None);
+    this.tooltip = `${issue.id}: ${issue.summary}`;
+    this.description = issue.status;
+  }
+}
+
+class JiraIssueProvider implements vscode.TreeDataProvider<JiraIssueTreeItem> {
+  private _onDidChangeTreeData: vscode.EventEmitter<
+    JiraIssueTreeItem | undefined
+  > = new vscode.EventEmitter<JiraIssueTreeItem | undefined>();
+  readonly onDidChangeTreeData: vscode.Event<JiraIssueTreeItem | undefined> =
+    this._onDidChangeTreeData.event;
+
+  private issues: any[] = [];
+
+  constructor() {}
+
+  refresh(): void {
+    this._onDidChangeTreeData.fire(undefined);
+  }
+
+  getTreeItem(element: JiraIssueTreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(): JiraIssueTreeItem[] {
+    return this.issues.map((issue) => new JiraIssueTreeItem(issue));
+  }
+
+  fetchIssues() {
+    runPythonScript(["fetch_issues"]).then((issues) => {
+      this.issues = issues;
+      this.refresh();
+    });
+  }
+}
+
+function runPythonScript(args: string[]): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    if (!workspaceFolder) {
+      vscode.window.showErrorMessage("No workspace folder found!");
+      reject("No workspace folder found");
+      return;
+    }
+
+    const pythonProcess = cp.spawn(
+      "python3",
+      ["../scripts/script.py", ...args],
+      {
+        cwd: workspaceFolder,
+      }
+    );
+
+    let output = "";
+    pythonProcess.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    pythonProcess.stderr.on("data", (data) => {
+      console.error(data.toString());
+    });
+
+    pythonProcess.on("close", (code) => {
+      if (code === 0) {
+        try {
+          const result = JSON.parse(output);
+          resolve(result);
+        } catch (err) {
+          reject("Failed to parse JSON from Python script");
+        }
+      } else {
+        reject(`Python script exited with code ${code}`);
+      }
+    });
+  });
 }
