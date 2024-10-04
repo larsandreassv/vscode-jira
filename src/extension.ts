@@ -230,7 +230,6 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
     );
   }
 
-  // TODO: Add confirmation dialog. 
   deleteLocalBranch(branch: TreeItem) {
     const workspaceFolder = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
 
@@ -262,7 +261,7 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
           );
         }
       }
-    );
+      );
   }
 
   pullFromDevelop(branch: TreeItem) {
@@ -273,8 +272,30 @@ class GitBranchTreeDataProvider implements vscode.TreeDataProvider<TreeItem> {
       return;
     }
 
+    let currentBranch = "";
+    let branchToMerge = String(branch.label).replace('*', '').trim();
+
     cp.exec(
-      `git checkout develop && git pull && git checkout ${branch.label} && git merge develop`,
+      `git branch --show-current`,
+      { cwd: workspaceFolder },
+      (err, stdout, stderr) => {
+        if (err) {
+          vscode.window.showErrorMessage(
+            `Failed to get current branch name: ${stderr}`
+          );
+          return;
+        }
+
+        currentBranch = stdout.trim();
+      });
+
+
+    if (currentBranch !== branchToMerge) {
+      this.checkoutLocalBranch(String(branch.label));
+    }
+
+    cp.exec(
+      `git merge develop`,
       { cwd: workspaceFolder },
       (err, stdout, stderr) => {
         if (err) {
