@@ -11,21 +11,18 @@ jira = JIRA(options=jira_options, basic_auth=(JIRA_EMAIL, JIRA_TOKEN))
 
 def fetch_issues(issue_key, transition_id):
 
-    jira.issues(issue_key, transition_id)
+    jira.transitions(issue_key, transition_id)
 
     print(f"Issue {issue_key} moved to ''")
 
 def update_issue(issue_id, transition_id):
     return
 
-# if __name__ == "__develop__":
-#   noe git-greier
-
 def main():
     if len(sys.argv) > 1:
         command = sys.argv[1]
         if command == "fetch_issues":
-            issues = fetch_issues()
+            issues = fetch_issues("BP-992", 71)
             print(json.dumps(issues))
         elif command == "update_issue":
             if len(sys.argv) == 4:

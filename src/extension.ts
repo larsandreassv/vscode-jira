@@ -401,7 +401,7 @@ function runPythonScript(args: string[]): Promise<any> {
 
     const pythonProcess = cp.spawn(
       "python3",
-      ["../scripts/script.py", ...args],
+      ["./scripts/script.py", ...args],
       {
         cwd: workspaceFolder,
       }
